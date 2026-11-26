@@ -1,0 +1,50 @@
+# VoxCPM2 on vllm-omni — 正式部署配置（GPU1，端口 8000，旧 FastAPI 服务停用后使用）
+# 基线：vllm_omni/deploy/voxcpm2.yaml（0.34.0 内置），仅按本机 48GB RTX 4090 调整显存预算。
+# GPU 选择不在此文件：systemd 通过 CUDA_VISIBLE_DEVICES=1 暴露单卡，devices "0" 即相对编号。
+async_chunk: false
+dtype: bfloat16
+
+stages:
+  - stage_id: 0
+    max_num_seqs: 8
+    # 48GB 卡且切换后无其他常驻进程，沿用官方 0.9；KV 仍被钉在 6GiB，不会占满。
+    gpu_memory_utilization: 0.9
+    kv_cache_memory_bytes: 6442450944  # 6 GiB
+    enforce_eager: true
+    trust_remote_code: true
+    enable_prefix_caching: false
+    async_scheduling: true
+    max_num_batched_tokens: 4096
+    max_model_len: 4096
+    devices: "0"
+    engine_extras:
+      hf_overrides:
+        voxcpm2_runtime_config:
+          # 服务级固定参数（vllm-omni 不支持请求级覆盖）：
+          # 旧客户端 cfgValue=2 / timesteps=10 正好等于默认值，行为等价。
+          inference_timesteps: 10
+          cfg_value: 2.0
+          cfg_cutoff_ratio: 1.0
+          enable_batched_cfm: true
+          enable_batched_vae_decode: true
+          coalesce_audio_d2h: true
+          enable_loc_dit_fused_qkv: true
+          enable_loc_dit_fused_mlp: true
+          enable_loc_dit_zero_dt_cache: true
+          enable_loc_dit_skip_qkv_contig: true
+          enable_loc_dit_reduce_overhead_no_cg: true
+          enable_unified_decode_graph: true
+          unified_decode_graph_max_batch_size: 8
+          enable_batched_fsq_fusion: true
+          enable_batched_prefill_tail: true
+    default_sampling_params:
+      temperature: 0.0
+      top_p: 1.0
+      top_k: -1
+      max_tokens: 4096
+      seed: 42
+      repetition_penalty: 1.0
+
+platforms:
+  npu:
+    model_runner: v2

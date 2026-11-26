@@ -1,0 +1,35 @@
+# Dependencies and build output
+node_modules/
+dist/
+build/
+
+# Local memory and IDE
+.memsearch/
+.vscode/
+.idea/
+*.swp
+
+# Third-party source/model extraction trees (large, not part of this project)
+.omni-src/
+*.tar.gz
+*.zip
+
+# Environment and secrets (only .env.example is tracked)
+.env
+.env.local
+*.key
+*.pem
+
+# Logs, temp files and debug screenshots
+*.log
+tmp/
+tmp-*.js
+tmp-*.log
+shot*.png
+ui-check*.png
+
+# OS files
+Thumbs.db
+.DS_Store
+
+.acl-repair/

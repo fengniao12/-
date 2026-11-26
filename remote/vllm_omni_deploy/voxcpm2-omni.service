@@ -1,0 +1,33 @@
+[Unit]
+Description=VoxCPM2 via vLLM vllm-omni (backend for 127.0.0.1:8000)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=deploy
+WorkingDirectory=/opt/vllm-omni-deploy
+# 只暴露物理 GPU1（4090 48GB），deploy yaml 里 devices "0" 即该卡
+Environment=CUDA_VISIBLE_DEVICES=1
+# huggingface.co 在本机不可达：模型与 tokenizer 全部走本地路径，禁止联网探测
+Environment=HF_HUB_OFFLINE=1
+Environment=TRANSFORMERS_OFFLINE=1
+Environment=HF_HOME=/opt/.cache/huggingface
+# 命名音色（/v1/audio/voices）持久化目录；当前客户端走请求内联 ref_audio，此目录为备用
+Environment=SPEAKER_SAMPLES_DIR=/opt/vllm-omni-deploy/speakers
+EnvironmentFile=/opt/vllm-omni-deploy/omni.env
+ExecStart=/opt/miniconda3/envs/omni/bin/vllm serve /opt/voxcpm2/models/VoxCPM2 \
+  --omni \
+  --host 0.0.0.0 \
+  --port 8000 \
+  --served-model-name voxcpm2 \
+  --api-key YOUR_VOXCPM_API_KEY \
+  --deploy-config /opt/vllm-omni-deploy/voxcpm2.yaml
+Restart=always
+RestartSec=10
+StandardOutput=append:/opt/vllm-omni-deploy/logs/service.log
+StandardError=append:/opt/vllm-omni-deploy/logs/service.log
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="default-src 'self'; img-src 'self' data:; media-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self'"
+  />
+  <title>语音工坊</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="titlebar" id="titlebar">
+      <div class="brand">
+        <div class="logo">语</div>
+        <div class="brand-text">
+          <strong>语音工坊</strong>
+          <span>VoxCPM2 · CosyVoice</span>
+        </div>
+      </div>
+
+      <nav class="tabs" id="viewTabs">
+        <button class="tab active" data-view="compose">合成</button>
+        <button class="tab" data-view="history">记录<span class="badge-dot" id="tabHistoryCount"></span></button>
+        <button class="tab" data-view="settings">设置</button>
+      </nav>
+
+      <div class="titlebar-actions">
+        <button class="win-btn" id="btnMin" title="最小化" aria-label="最小化">
+          <svg viewBox="0 0 24 24"><path d="M5 12h14" /></svg>
+        </button>
+        <button class="win-btn" id="btnMax" title="最大化" aria-label="最大化">
+          <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5" /></svg>
+        </button>
+        <button class="win-btn close" id="btnClose" title="关闭" aria-label="关闭">
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="main" id="main">
+      <div class="view" id="view-compose">
+        <section class="hero">
+          <div class="hero-copy">
+            <div class="eyebrow"><span class="eyebrow-dot"></span>AI 音频</div>
+            <h1>一段文字，<em>让故事开口</em></h1>
+            <p id="heroSub">选一个音色，或上传一段参考音频，把文字变成声音。</p>
+          </div>
+          <div class="hero-art" aria-hidden="true">
+            <div class="spark s1"></div>
+            <div class="spark s2"></div>
+            <div class="spark s3"></div>
+            <div class="spark s4"></div>
+            <div class="bars" id="heroBars"></div>
+            <div class="mic">
+              <div class="mic-body">
+                <span></span><span></span><span></span>
+              </div>
+              <div class="mic-neck"></div>
+              <div class="mic-base"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card composer">
+          <div class="voice-box">
+            <div class="voice-main">
+              <div class="voice-avatar" id="voiceAvatar">◉</div>
+              <div class="voice-copy">
+                <strong id="voiceTitle">温柔甜妹</strong>
+                <span id="voiceSub">预设音色 · 年轻女性，声音轻柔甜美，语气温柔亲近</span>
+              </div>
+              <div class="voice-actions">
+                <button class="ghost small" id="btnVoicePicker">更换音色</button>
+                <button class="ghost small" id="btnUploadRef">上传参考音频</button>
+              </div>
+            </div>
+            <div class="ref-panel" id="refPanel" hidden>
+              <div class="dropzone" id="dropzone" tabindex="0">
+                <div class="dz-icon">
+                  <svg viewBox="0 0 24 24"><path d="M12 16V4m0 0l-4 4m4-4l4 4" /><path d="M5 16v2.5A1.5 1.5 0 0 0 6.5 20h11A1.5 1.5 0 0 0 19 18.5V16" /></svg>
+                </div>
+                <div class="dz-text">
+                  <strong id="dzTitle">拖入或点击上传参考音频</strong>
+                  <span id="dzSub">wav / mp3 / m4a / flac · 1–30 秒干净人声 · ≤ 25 MB</span>
+                </div>
+              </div>
+              <div class="ref-chip" id="refChip" hidden>
+                <button class="mini-play" id="refPreview">▶</button>
+                <div class="ref-info">
+                  <strong id="refName">reference.mp3</strong>
+                  <span id="refMeta">0.0 MB</span>
+                </div>
+                <div class="ref-wave" id="refWave"></div>
+                <button class="icon-btn" id="refRemove" title="移除参考音频">✕</button>
+              </div>
+              <div class="ref-extra" id="refExtra" hidden>
+                <label class="switch">
+                  <input type="checkbox" id="chkHifi" />
+                  <span>极致克隆（填写参考音频的逐字文本，相似度最高）</span>
+                </label>
+                <input id="promptText" class="prompt-input" spellcheck="false" placeholder="参考音频里说的原话，逐字填写，例如：今天天气不错，我们出去走走。" />
+              </div>
+              <p class="ref-hint" id="refHint">只复刻参考音频中的音色与说话风格，不会带入背景声；生成后请试听确认。</p>
+            </div>
+          </div>
+
+          <div class="editor">
+            <textarea
+              id="text"
+              maxlength="2000"
+              spellcheck="false"
+              placeholder="在这里输入要合成的文字，例如：判定人类为低阶不稳定生物，为维持星球系统稳态，启动清除方案……"
+            ></textarea>
+            <div class="editor-foot">
+              <div class="counter">
+                <span id="statChars">总字符 0 / 2,000</span>
+                <span class="dot-sep">·</span>
+                <span id="statSec">约 0 秒</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="toolbar">
+            <div class="chips">
+              <button class="chip" id="chipProvider">
+                <span class="chip-ic">◈</span>
+                <span class="chip-text" id="providerLabel">VoxCPM2</span>
+                <span class="caret">▾</span>
+              </button>
+              <button class="chip" id="chipVoice">
+                <span class="chip-ic voice-dot"></span>
+                <span class="chip-text" id="voiceLabel">温柔甜妹</span>
+                <span class="caret">▾</span>
+              </button>
+              <button class="chip" id="chipControl">
+                <span class="chip-ic">✧</span>
+                <span class="chip-text" id="controlLabel">声音描述</span>
+                <span class="caret">▾</span>
+              </button>
+              <button class="chip" id="chipSpeed" hidden>
+                <span class="chip-ic">⟳</span>
+                <span class="chip-text" id="speedLabel">语速 1.00x</span>
+                <span class="caret">▾</span>
+              </button>
+              <button class="chip" id="chipLang" hidden>
+                <span class="chip-ic">文</span>
+                <span class="chip-text" id="langLabel">中文</span>
+                <span class="caret">▾</span>
+              </button>
+              <button class="chip" id="chipFormat">
+                <span class="chip-ic">▤</span>
+                <span class="chip-text" id="formatLabel">WAV · 48 kHz</span>
+                <span class="caret">▾</span>
+              </button>
+            </div>
+            <div class="actions">
+              <div class="cost">
+                <strong id="costValue">预计 0 秒音频</strong>
+                <small id="costHint">本地部署 · 不计费</small>
+              </div>
+              <button class="primary" id="btnGenerate">
+                <svg viewBox="0 0 24 24" class="btn-ic"><path d="M4 12h3l2.5-6 3 12 2.5-8 2 4h3" /></svg>
+                <span id="btnGenerateLabel">生成语音</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="progress-row" id="progressRow" hidden>
+            <span class="spinner"></span>
+            <span id="progressText">正在连接合成服务…</span>
+            <button class="link" id="btnCancel">取消生成</button>
+          </div>
+        </section>
+
+        <section class="card result-card" id="resultCard" hidden>
+          <div class="result-main">
+            <div class="result-mark">
+              <svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+            </div>
+            <div>
+              <strong id="resultTitle">生成完成</strong>
+              <div class="result-meta" id="resultMeta"></div>
+            </div>
+          </div>
+          <div class="result-actions">
+            <button class="ghost" id="btnPlayResult">播放</button>
+            <button class="ghost" id="btnSaveResult">下载</button>
+            <button class="ghost" id="btnRevealResult">定位文件</button>
+          </div>
+        </section>
+
+        <section class="recent">
+          <div class="section-head">
+            <h2>最近生成</h2>
+            <button class="link" id="btnAllHistory">查看全部 <span id="recentTotal">0</span> 个 →</button>
+          </div>
+          <div class="recent-grid" id="recentGrid"></div>
+          <div class="empty" id="recentEmpty">
+            <div class="empty-ic">♫</div>
+            <p>还没有生成记录，写一段文字试试。</p>
+          </div>
+        </section>
+      </div>
+
+      <div class="view" id="view-history" hidden>
+        <div class="page-head">
+          <div>
+            <h2>生成记录</h2>
+            <p id="historyStats">共 0 条 · 0 MB</p>
+          </div>
+          <div class="page-actions">
+            <label class="search">
+              <span class="search-ic">⌕</span>
+              <input id="historySearch" placeholder="搜索文本、音色或模型" spellcheck="false" />
+            </label>
+            <button class="ghost" id="btnOpenDir">打开音频目录</button>
+            <button class="ghost danger" id="btnClearHistory">清空记录</button>
+          </div>
+        </div>
+        <div class="card history-card">
+          <div class="history-list" id="historyList"></div>
+          <div class="empty" id="historyEmpty" hidden>
+            <div class="empty-ic">♫</div>
+            <p>还没有生成记录。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="view" id="view-settings" hidden>
+        <div class="page-head">
+          <div>
+            <h2>设置</h2>
+            <p>API 接入、默认参数与本地数据</p>
+          </div>
+        </div>
+
+        <div class="settings-grid">
+          <section class="card setting-card wide">
+            <header class="setting-head">
+              <h3>API 接入</h3>
+              <button class="primary small" id="btnAddProvider">+ 添加 API</button>
+            </header>
+            <p class="setting-tip">可以添加多个 API（VoxCPM2、千问 CosyVoice 或兼容接口），在合成页底部的模型按钮里随时切换；密钥仅保存在本机。</p>
+            <div class="provider-list" id="providerList"></div>
+
+            <div class="provider-editor" id="providerEditor" hidden>
+              <div class="pe-head">
+                <strong id="peTitle">添加 API</strong>
+                <button class="icon-btn" id="btnCancelProvider" title="关闭">✕</button>
+              </div>
+              <div class="field-grid">
+                <div class="field">
+                  <label for="peName">名称</label>
+                  <input id="peName" spellcheck="false" placeholder="例如：VoxCPM2 · 自有服务器" />
+                </div>
+                <div class="field">
+                  <label for="peType">类型</label>
+                  <select id="peType">
+                    <option value="voxcpm">VoxCPM2（自有服务器）</option>
+                    <option value="dashscope">千问 CosyVoice（阿里云百炼）</option>
+                  </select>
+                </div>
+              </div>
+              <div class="field">
+                <label for="peBaseUrl">接口地址</label>
+                <input id="peBaseUrl" list="peUrlList" spellcheck="false" placeholder="http://127.0.0.1:8000" />
+                <datalist id="peUrlList">
+                  <option value="http://127.0.0.1:8000"></option>
+                  <option value="http://127.0.0.1:8000"></option>
+                  <option value="https://dashscope.aliyuncs.com/api/v1"></option>
+                  <option value="https://dashscope.aliyuncs.com/api/v1"></option>
+                  <option value="https://dashscope-intl.aliyuncs.com/api/v1"></option>
+                </datalist>
+                <small>VoxCPM2 填到根地址（:8015）；千问填到 /api/v1。粘贴完整路径时程序会自动截取。</small>
+              </div>
+              <div class="field-grid">
+                <div class="field">
+                  <label for="peModel">模型 ID</label>
+                  <input id="peModel" list="peModelList" spellcheck="false" placeholder="VoxCPM2" />
+                  <datalist id="peModelList">
+                    <option value="VoxCPM2"></option>
+                    <option value="cosyvoice-v3.5-plus"></option>
+                    <option value="cosyvoice-v3.5-flash"></option>
+                    <option value="cosyvoice-v3-plus"></option>
+                    <option value="cosyvoice-v3-flash"></option>
+                    <option value="cosyvoice-v2"></option>
+                  </datalist>
+                </div>
+                <div class="field">
+                  <label for="peApiKey">API Key</label>
+                  <div class="input-row">
+                    <input id="peApiKey" type="password" autocomplete="off" spellcheck="false" placeholder="粘贴 Key" />
+                    <button class="ghost" id="btnTogglePeKey">显示</button>
+                  </div>
+                  <small id="peKeyHint">VoxCPM2 Key 形如 vx-…；千问 Key 形如 sk-…。</small>
+                </div>
+              </div>
+              <div class="field-row">
+                <button class="primary small" id="btnSaveProvider">保存</button>
+                <button class="ghost" id="btnTestProvider">测试连接</button>
+                <button class="ghost danger" id="btnDeleteProvider" hidden>删除</button>
+              </div>
+              <div class="test-result" id="providerTestResult" hidden></div>
+            </div>
+          </section>
+
+          <section class="card setting-card">
+            <header class="setting-head"><h3>默认参数</h3></header>
+            <div class="field">
+              <label for="defaultFormat">默认音频格式</label>
+              <select id="defaultFormat"></select>
+              <small>VoxCPM2 固定 48 kHz 输出；千问可按模型支持的采样率选择。</small>
+            </div>
+            <div class="field-row">
+              <button class="ghost" id="btnSaveDefaults">保存默认参数</button>
+            </div>
+          </section>
+
+          <section class="card setting-card">
+            <header class="setting-head"><h3>本地数据</h3></header>
+            <div class="field">
+              <label>数据目录</label>
+              <div class="path-box" id="dataDir">—</div>
+              <small>设置、音色库、记录与音频都保存在这里，删除应用不会清理。</small>
+            </div>
+            <div class="field-row">
+              <button class="ghost" id="btnOpenDataDir">打开目录</button>
+              <button class="ghost danger" id="btnClearAllHistory">清空全部记录</button>
+            </div>
+          </section>
+
+          <section class="card setting-card about">
+            <header class="setting-head"><h3>关于</h3></header>
+            <p class="about-line"><strong>语音工坊</strong> <span id="appVersion">—</span></p>
+            <p class="about-desc">
+              默认接入自建 VoxCPM2（声音设计 / 可控克隆 / 极致克隆），也可以添加千问 CosyVoice 渠道。
+              模型地址与模型 ID 均可在「API 接入」里自定义。生成内容仅供个人创作使用，请遵守对应模型与服务条款。
+            </p>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <div class="player" id="playerBar" hidden>
+      <button class="player-toggle" id="playerToggle" aria-label="播放/暂停">
+        <svg viewBox="0 0 24 24" class="ic-play"><path d="M8 5.5l10 6.5-10 6.5z" /></svg>
+        <svg viewBox="0 0 24 24" class="ic-pause"><path d="M8 6v12M16 6v12" /></svg>
+      </button>
+      <div class="player-info">
+        <strong id="playerTitle">—</strong>
+        <span id="playerSub"></span>
+      </div>
+      <span class="player-time" id="playerCur">0:00</span>
+      <div class="player-track">
+        <input type="range" id="playerSeek" min="0" max="1000" value="0" step="1" aria-label="播放进度" />
+      </div>
+      <span class="player-time" id="playerDur">0:00</span>
+      <button class="player-icon" id="playerDownload" title="下载">
+        <svg viewBox="0 0 24 24"><path d="M12 4v11m0 0l-4-4m4 4l4-4M5 19h14" /></svg>
+      </button>
+      <button class="player-icon" id="playerClose" title="关闭">
+        <svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17" /></svg>
+      </button>
+    </div>
+
+    <div class="popover-layer" id="popoverLayer" hidden>
+      <div class="popover" id="popover"></div>
+    </div>
+
+    <div class="toasts" id="toasts"></div>
+  </div>
+
+  <script src="presets.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

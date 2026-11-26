@@ -1,0 +1,21 @@
+[Unit]
+Description=VoxCPM2 TTS API (FastAPI, port 11434)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=deploy
+Group=deploy
+WorkingDirectory=/opt/voxcpm2
+EnvironmentFile=/opt/voxcpm2/.env
+ExecStart=/opt/voxcpm2/.venv/bin/python /opt/voxcpm2/app.py
+Restart=always
+RestartSec=10
+TimeoutStartSec=600
+TimeoutStopSec=30
+StandardOutput=append:/opt/voxcpm2/logs/service.log
+StandardError=append:/opt/voxcpm2/logs/service.log
+
+[Install]
+WantedBy=multi-user.target
